@@ -158,6 +158,96 @@ export class FileService {
             throw error; // Propager pour l'UI
         }
     }
+
+    // Récupère le handle du dossier parent d'un chemin
+    async getParentHandle(path: string): Promise<FileSystemDirectoryHandle> {
+        if (!this.directoryHandle) throw new Error("Aucun dossier racine ouvert.");
+
+        const parts = path.split('/');
+        parts.pop(); // Retirer le nom du fichier/dossier cible
+
+        let currentDir = this.directoryHandle;
+        for (const part of parts) {
+            currentDir = await currentDir.getDirectoryHandle(part, { create: false });
+        }
+        return currentDir;
+    }
+
+    // Supprime un fichier ou un dossier
+    async deleteEntry(path: string): Promise<void> {
+        try {
+            await this.verifyPermission(this.directoryHandle!, true);
+
+            const parent = await this.getParentHandle(path);
+            const name = path.split('/').pop()!;
+
+            await parent.removeEntry(name, { recursive: true });
+        } catch (error) {
+            console.error(`Erreur suppression '${path}':`, error);
+            throw error;
+        }
+    }
+
+    // Renomme un fichier ou dossier (Move ou Copy+Delete)
+    async renameEntry(oldPath: string, newPath: string): Promise<void> {
+        try {
+            await this.verifyPermission(this.directoryHandle!, true);
+            const parent = await this.getParentHandle(oldPath);
+            const name = oldPath.split('/').pop()!;
+
+            // 1. Tenter move() si disponible
+            const oldHandle = await this.getFileHandle(oldPath).catch(() => null)
+                || await parent.getDirectoryHandle(name).catch(() => null);
+
+            if (!oldHandle) throw new Error("Impossible de trouver l'élément source.");
+
+            let moved = false;
+            // @ts-ignore
+            if (oldHandle.move) {
+                try {
+                    // @ts-ignore
+                    await oldHandle.move(newPath.split('/').pop()!);
+                    moved = true;
+                } catch (e) {
+                    console.warn("La méthode native move() a échoué, passage en fallback Copy+Delete", e);
+                }
+            }
+
+            if (moved) return;
+
+            // 2. Fallback: Copy + Delete (Prise en charge systématique des fichiers et dossiers)
+            if (oldHandle.kind === 'file') {
+                const content = await this.readFile(oldHandle as FileSystemFileHandle);
+                await this.createFile(newPath, content);
+                await parent.removeEntry(name);
+            } else {
+                // Si c'est un dossier, on fait une copie récursive
+                await this.copyRecursive(oldHandle as FileSystemDirectoryHandle, newPath);
+                await parent.removeEntry(name, { recursive: true });
+            }
+
+        } catch (error) {
+            console.error(`Erreur renommage '${oldPath}' -> '${newPath}':`, error);
+            throw error;
+        }
+    }
+
+    // Copie récursive d'un fichier ou dossier vers un nouveau chemin
+    async copyRecursive(sourceHandle: FileSystemHandle, destPath: string): Promise<void> {
+        if (sourceHandle.kind === 'file') {
+            const content = await this.readFile(sourceHandle as FileSystemFileHandle);
+            await this.createFile(destPath, content);
+        } else if (sourceHandle.kind === 'directory') {
+            const dirHandle = sourceHandle as FileSystemDirectoryHandle;
+            await this.createDirectory(destPath); // Assure que le dossier cible existe
+
+            // @ts-ignore
+            for await (const entry of dirHandle.values()) {
+                const newEntryPath = `${destPath}/${entry.name}`;
+                await this.copyRecursive(entry, newEntryPath);
+            }
+        }
+    }
 }
 
 export const fileService = new FileService();

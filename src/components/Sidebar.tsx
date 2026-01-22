@@ -28,6 +28,8 @@ interface SidebarProps {
     onSelectResource: (resource: Resource) => void;
     onCreateFolder: (name: string) => void;
     onCreateNote: (name: string) => void;
+    onRename: (id: string, newName: string) => void;
+    onDelete: (id: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -39,18 +41,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onSelectResource,
     onCreateFolder,
     onCreateNote,
+    onRename,
+    onDelete,
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
     const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string; type: string } | null>(null);
 
     // Construction de l'arbre complet
     const fullTree = useMemo(() => buildFileTree(notes, resources, folders), [notes, resources, folders]);
 
     // Filtrage (recherche)
-    // TODO: Optimisation possible pour ne pas reconstruire l'arbre à chaque frappe si gros volume
-    // Pour l'instant on filtre l'arbre construit ou on filtre la liste plate et on reconstruit ?
-    // Filtrer la liste plate est plus simple :
     const displayTree = useMemo(() => {
         if (!searchTerm) return fullTree;
 
@@ -62,10 +64,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
             r.name.toLowerCase().includes(lowerTerm)
         );
 
-        // On reconstruit l'arbre avec seulement les éléments filtrés
         return buildFileTree(filteredNotes, filteredResources);
     }, [notes, resources, searchTerm, fullTree]);
 
+    // Fermer le menu au clic ailleurs
+    React.useEffect(() => {
+        const handleClick = () => setContextMenu(null);
+        window.addEventListener('click', handleClick);
+        return () => window.removeEventListener('click', handleClick);
+    }, []);
 
     const toggleFolder = (folderId: string, event: React.MouseEvent) => {
         event.stopPropagation();
@@ -80,6 +87,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     const handleFolderClick = (folderId: string) => {
         setSelectedFolderId(folderId === selectedFolderId ? null : folderId);
+    };
+
+    const handleContextMenu = (e: React.MouseEvent, id: string, type: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setContextMenu({ x: e.clientX, y: e.clientY, id, type });
     };
 
     // Auto-expand si recherche active
@@ -114,6 +127,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
             const fullPath = selectedFolderId ? `${selectedFolderId}/${fileName}` : fileName;
             onCreateNote(fullPath);
         }
+    };
+
+    const handleRenameClick = () => {
+        if (!contextMenu) return;
+        const currentName = contextMenu.id.split('/').pop();
+        const newName = prompt("Nouveau nom :", currentName);
+        if (newName && newName !== currentName) {
+            onRename(contextMenu.id, newName);
+        }
+        setContextMenu(null);
+    };
+
+    const handleDeleteClick = () => {
+        if (!contextMenu) return;
+        if (confirm(`Êtes-vous sûr de vouloir supprimer "${contextMenu.id}" ?`)) {
+            onDelete(contextMenu.id);
+        }
+        setContextMenu(null);
     };
 
 
@@ -159,6 +190,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <div
                                     className={`tree-label folder-label ${selectedFolderId === node.id ? 'active' : ''}`}
                                     onClick={() => handleFolderClick(node.id)}
+                                    onContextMenu={(e) => handleContextMenu(e, node.id, 'folder')}
                                 >
                                     <span
                                         className="folder-toggle-click-area"
@@ -192,11 +224,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     if (node.type === 'note') onSelectNote(node.data as Note);
                                     else onSelectResource(node.data as Resource);
                                 }}
+                                onContextMenu={(e) => handleContextMenu(e, node.id, node.type)}
                             >
                                 <span className="tree-indent" />
-                                {/* Indentation visuelle simple si pas dans un folder enfant du DOM 
-                    but here we are recursive, so the parent's padding-left is enough */}
-
                                 {node.type === 'note' ? (
                                     <FileText size={15} className="tree-icon note-icon" />
                                 ) : (
@@ -264,6 +294,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     renderTree(displayTree)
                 )}
             </div>
+
+            {contextMenu && (
+                <div style={{
+                    position: 'fixed',
+                    top: contextMenu.y,
+                    left: contextMenu.x,
+                    background: 'var(--cockpit-sidebar-bg)',
+                    border: '1px solid var(--cockpit-border)',
+                    borderRadius: '4px',
+                    padding: '4px 0',
+                    zIndex: 1000,
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    minWidth: '150px'
+                }}>
+                    <div className="context-menu-item" onClick={handleRenameClick} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--cockpit-text)' }}>
+                        Renommer
+                    </div>
+                    <div className="context-menu-item" onClick={handleDeleteClick} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '0.85rem', color: '#ff6b6b' }}>
+                        Supprimer
+                    </div>
+                </div>
+            )}
         </aside>
     );
 };

@@ -109,6 +109,48 @@ function App() {
     }
   };
 
+  const handleRename = async (oldPath: string, newName: string) => {
+    try {
+      setStatus(`Renommage de ${oldPath}...`);
+      // Calculer le nouveau path complet
+      const parts = oldPath.split('/');
+      parts.pop();
+      const newPath = [...parts, newName].join('/');
+
+      await fileService.renameEntry(oldPath, newPath);
+
+      // Mise à jour de la DB: 
+      // Idéalement on devrait faire ça dans SyncService ou DatabaseService, 
+      // mais ici on va just runSync() qui va tout réindexer proprement (brutal mais sûr pour éviter les incohérences)
+      // Pour les très gros dossiers, c'est lent, mais sûr.
+      await runSync();
+      setStatus("Renommage terminé.");
+    } catch (error) {
+      console.error("Erreur renommage:", error);
+      setStatus("Erreur renommage.");
+      alert(`Erreur lors du renommage: ${error}`);
+    }
+  };
+
+  const handleDelete = async (path: string) => {
+    try {
+      setStatus(`Suppression de ${path}...`);
+      await fileService.deleteEntry(path);
+      // DB Update via Sync
+      await runSync();
+      setStatus("Suppression terminée.");
+
+      // Si on supprime la note active, on la désélectionne
+      if (activeNote?.relative_path === path) {
+        setActiveNote(null);
+      }
+    } catch (error) {
+      console.error("Erreur suppression:", error);
+      setStatus("Erreur suppression.");
+      alert("Erreur lors de la suppression.");
+    }
+  };
+
   return (
     <div className="app-container" style={{ display: 'flex', flexDirection: 'row', maxWidth: '100%', padding: 0, height: '100vh', overflow: 'hidden', background: 'var(--cockpit-bg)', color: 'var(--cockpit-text)' }}>
 
@@ -121,6 +163,8 @@ function App() {
         onSelectResource={handleSelectResource}
         onCreateFolder={handleCreateFolder}
         onCreateNote={handleCreateNote}
+        onRename={handleRename}
+        onDelete={handleDelete}
       />
 
       <main className="app-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
