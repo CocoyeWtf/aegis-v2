@@ -9,6 +9,7 @@ import { Sidebar } from './components/Sidebar';
 function App() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
+  const [folders, setFolders] = useState<string[]>([]);
   const [status, setStatus] = useState<string>('En attente');
   const [directoryName, setDirectoryName] = useState<string | null>(null);
   const [activeNote, setActiveNote] = useState<Note | null>(null);
@@ -41,6 +42,11 @@ function App() {
   const handleOpenDirectory = async () => {
     try {
       setStatus('Ouverture...');
+      // Reset de l'interface
+      setNotes([]);
+      setResources([]);
+      setFolders([]);
+
       const handle = await fileService.openDirectory();
       setDirectoryName(handle.name);
 
@@ -56,8 +62,9 @@ function App() {
 
   const runSync = async () => {
     setStatus('Indexation...');
-    const counts = await syncService.importFiles();
-    setStatus(`Sync terminée (${counts.notes} notes, ${counts.resources} res).`);
+    const result = await syncService.importFiles();
+    setFolders(result.folders);
+    setStatus(`Sync terminée (${result.notes} notes, ${result.resources} res, ${result.folders.length} doss).`);
     loadDataFromDB();
   };
 
@@ -78,15 +85,42 @@ function App() {
     }
   };
 
+  const handleCreateFolder = async (path: string) => {
+    try {
+      await fileService.createDirectory(path);
+      await runSync();
+    } catch (error) {
+      console.error("Erreur création dossier:", error);
+      alert("Erreur lors de la création du dossier.");
+    }
+  };
+
+  const handleCreateNote = async (path: string) => {
+    try {
+      // Contenu par défaut
+      const defaultContent = `# ${path.split('/').pop()?.replace('.md', '')}\n\n`;
+      await fileService.createFile(path, defaultContent);
+      await runSync();
+
+      // Tenter de sélectionner la nouvelle note (nécessiterait une meilleure gestion d'état async, mais simple refresh ici)
+    } catch (error) {
+      console.error("Erreur création note:", error);
+      alert("Erreur lors de la création de la note.");
+    }
+  };
+
   return (
     <div className="app-container" style={{ display: 'flex', flexDirection: 'row', maxWidth: '100%', padding: 0, height: '100vh', overflow: 'hidden', background: 'var(--cockpit-bg)', color: 'var(--cockpit-text)' }}>
 
       <Sidebar
         notes={notes}
         resources={resources}
+        folders={folders}
         activeNoteId={activeNote?.relative_path}
         onSelectNote={setActiveNote}
         onSelectResource={handleSelectResource}
+        onCreateFolder={handleCreateFolder}
+        onCreateNote={handleCreateNote}
       />
 
       <main className="app-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>

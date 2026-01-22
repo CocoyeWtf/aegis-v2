@@ -84,6 +84,16 @@ class DatabaseService {
         const db = await this.dbPromise;
         return db.get('workspace', 'root');
     }
+
+    async clearAllData(): Promise<void> {
+        const db = await this.dbPromise;
+        const tx = db.transaction(['notes', 'resources'], 'readwrite');
+        await Promise.all([
+            tx.objectStore('notes').clear(),
+            tx.objectStore('resources').clear(),
+            tx.done
+        ]);
+    }
 }
 
 export const dbService = new DatabaseService();

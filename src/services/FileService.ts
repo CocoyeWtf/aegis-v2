@@ -47,31 +47,116 @@ export class FileService {
         }
     }
 
-    // Récupère récursivement TOUS les fichiers
+    // Récupère récursivement TOUS les fichiers + dossiers
+    async getFlatEntries(
+        dirHandle: FileSystemDirectoryHandle = this.directoryHandle!,
+        path = ''
+    ): Promise<{ path: string; handle: FileSystemHandle; kind: 'file' | 'directory' }[]> {
+        if (!dirHandle) throw new Error("Aucun dossier ouvert.");
+
+        const entries: { path: string; handle: FileSystemHandle; kind: 'file' | 'directory' }[] = [];
+
+        // @ts-ignore
+        for await (const entry of dirHandle.values()) {
+            if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === '.git') continue;
+
+            const relativePath = path ? `${path}/${entry.name}` : entry.name;
+            entries.push({ path: relativePath, handle: entry, kind: entry.kind });
+
+            if (entry.kind === 'directory') {
+                const subEntries = await this.getFlatEntries(entry, relativePath);
+                entries.push(...subEntries);
+            }
+        }
+
+        return entries;
+    }
+
+    // Récupère récursivement TOUS les fichiers (Backward compatibility / Helper)
     async getAllFiles(
         dirHandle: FileSystemDirectoryHandle = this.directoryHandle!,
         path = ''
     ): Promise<{ path: string; handle: FileSystemFileHandle }[]> {
-        if (!dirHandle) throw new Error("Aucun dossier ouvert.");
-
-        const files: { path: string; handle: FileSystemFileHandle }[] = [];
-
-        // @ts-ignore
-        for await (const entry of dirHandle.values()) {
-            // Ignorer les dossiers cachés (ex: .git)
-            if (entry.name.startsWith('.')) continue;
-
-            const relativePath = path ? `${path}/${entry.name}` : entry.name;
-
-            if (entry.kind === 'file') {
-                files.push({ path: relativePath, handle: entry });
-            } else if (entry.kind === 'directory') {
-                const subFiles = await this.getAllFiles(entry, relativePath);
-                files.push(...subFiles);
-            }
+        const all = await this.getFlatEntries(dirHandle, path);
+        return all
+            .filter(e => e.kind === 'file')
+            .map(e => ({ path: e.path, handle: e.handle as FileSystemFileHandle }));
+    }
+    // Vérifie et demande la permission si nécessaire
+    async verifyPermission(handle: FileSystemHandle, readWrite: boolean = false): Promise<boolean> {
+        const options: any = {};
+        if (readWrite) {
+            options.mode = 'readwrite';
         }
 
-        return files;
+        // @ts-ignore
+        if ((await handle.queryPermission(options)) === 'granted') {
+            return true;
+        }
+
+        // @ts-ignore
+        if ((await handle.requestPermission(options)) === 'granted') {
+            return true;
+        }
+
+        return false;
+    }
+
+    // Crée (ou récupère) un dossier récursivement
+    async createDirectory(path: string): Promise<FileSystemDirectoryHandle> {
+        if (!this.directoryHandle) throw new Error("Aucun dossier racine ouvert.");
+
+        // Vérifier les permissions d'écriture à la racine
+        const hasPerm = await this.verifyPermission(this.directoryHandle, true);
+        if (!hasPerm) {
+            throw new Error("Permission d'écriture refusée sur le dossier racine.");
+        }
+
+        const parts = path.split('/').filter(p => p.length > 0);
+        let currentDir = this.directoryHandle;
+
+        try {
+            for (const part of parts) {
+                // getDirectoryHandle avec create: true crée le dossier s'il n'existe pas
+                currentDir = await currentDir.getDirectoryHandle(part, { create: true });
+            }
+            return currentDir;
+        } catch (error) {
+            console.error(`Erreur création dossier '${path}':`, error);
+            throw error;
+        }
+    }
+
+    // Crée un fichier et écrit le contenu
+    async createFile(path: string, content: string): Promise<void> {
+        if (!this.directoryHandle) throw new Error("Aucun dossier racine ouvert.");
+
+        try {
+            const parts = path.split('/');
+            const fileName = parts.pop()!;
+            const dirPath = parts.join('/');
+
+            // Vérifier les permissions avant de commencer
+            const hasPerm = await this.verifyPermission(this.directoryHandle, true);
+            if (!hasPerm) {
+                throw new Error("Permission d'écriture refusée (Root).");
+            }
+
+            // 1. S'assurer que le dossier parent existe
+            // Si dirPath est vide, createDirectory retourne la racine
+            const dirHandle = await this.createDirectory(dirPath);
+
+            // 2. Créer le fichier
+            const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+
+            // 3. Écrire le contenu
+            const writable = await fileHandle.createWritable();
+            await writable.write(content);
+            await writable.close();
+        } catch (error) {
+            console.error(`Erreur création fichier '${path}':`, error);
+            throw error; // Propager pour l'UI
+        }
     }
 }
 

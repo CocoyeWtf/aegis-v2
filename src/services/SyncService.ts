@@ -4,18 +4,28 @@ import type { Note, Resource } from '../types';
 
 export class SyncService {
     // Importe les fichiers du dossier local dans la base de données
-    async importFiles(): Promise<{ notes: number; resources: number }> {
+    async importFiles(): Promise<{ notes: number; resources: number; folders: string[] }> {
         try {
-            const files = await fileService.getAllFiles();
+            // Nettoyage complet de la base avant import
+            await dbService.clearAllData();
+
+            const entries = await fileService.getFlatEntries();
             let noteCount = 0;
             let resourceCount = 0;
+            const folders: string[] = [];
 
-            for (const { path, handle } of files) {
+            for (const { path, handle, kind } of entries) {
+                if (kind === 'directory') {
+                    folders.push(path);
+                    continue;
+                }
+
                 const extension = path.split('.').pop()?.toLowerCase() || '';
                 const fileName = path.split('/').pop() || '';
 
                 if (extension === 'md') {
                     // C'est une Note
+                    // @ts-ignore
                     const content = await fileService.readFile(handle);
                     const note: Note = {
                         relative_path: path,
@@ -27,6 +37,7 @@ export class SyncService {
                     noteCount++;
                 } else {
                     // C'est une Ressource
+                    // @ts-ignore
                     const file = await handle.getFile();
                     const resource: Resource = {
                         relative_path: path,
@@ -40,8 +51,8 @@ export class SyncService {
                 }
             }
 
-            console.log(`Indexation terminée : ${noteCount} notes, ${resourceCount} ressources.`);
-            return { notes: noteCount, resources: resourceCount };
+            console.log(`Indexation terminée : ${noteCount} notes, ${resourceCount} ressources, ${folders.length} dossiers.`);
+            return { notes: noteCount, resources: resourceCount, folders };
         } catch (error) {
             console.error("Erreur lors de l'importation:", error);
             throw error;

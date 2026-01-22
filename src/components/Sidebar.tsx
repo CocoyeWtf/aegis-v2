@@ -12,6 +12,8 @@ import {
     FileImage,
     FileCode,
     FileJson,
+    FolderPlus,
+    FilePlus,
 } from 'lucide-react';
 import type { Note, Resource } from '../types';
 import { buildFileTree, type FileTreeNode } from '../utils/fileTreeUtils';
@@ -20,23 +22,30 @@ import './Sidebar.css';
 interface SidebarProps {
     notes: Note[];
     resources: Resource[];
+    folders: string[];
     activeNoteId?: string;
     onSelectNote: (note: Note) => void;
     onSelectResource: (resource: Resource) => void;
+    onCreateFolder: (name: string) => void;
+    onCreateNote: (name: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
     notes,
     resources,
+    folders,
     activeNoteId,
     onSelectNote,
     onSelectResource,
+    onCreateFolder,
+    onCreateNote,
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+    const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
 
     // Construction de l'arbre complet
-    const fullTree = useMemo(() => buildFileTree(notes, resources), [notes, resources]);
+    const fullTree = useMemo(() => buildFileTree(notes, resources, folders), [notes, resources, folders]);
 
     // Filtrage (recherche)
     // TODO: Optimisation possible pour ne pas reconstruire l'arbre à chaque frappe si gros volume
@@ -54,13 +63,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         );
 
         // On reconstruit l'arbre avec seulement les éléments filtrés
-        // Note: Cela perd les dossiers vides ou qui ne contiennent pas de match direct
-        // C'est souvent le comportement voulu (montrer seulement ce qui matche)
         return buildFileTree(filteredNotes, filteredResources);
     }, [notes, resources, searchTerm, fullTree]);
 
 
-    const toggleFolder = (folderId: string) => {
+    const toggleFolder = (folderId: string, event: React.MouseEvent) => {
+        event.stopPropagation();
         const newExpanded = new Set(expandedFolders);
         if (newExpanded.has(folderId)) {
             newExpanded.delete(folderId);
@@ -70,13 +78,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         setExpandedFolders(newExpanded);
     };
 
+    const handleFolderClick = (folderId: string) => {
+        setSelectedFolderId(folderId === selectedFolderId ? null : folderId);
+    };
+
     // Auto-expand si recherche active
     useMemo(() => {
         if (searchTerm) {
-            // Pour une recherche simple, on pourrait tout ouvrir. 
-            // Ici on laisse l'utilisateur gérer ou on force open tous les dossiers présents dans l'arbre filtré ?
-            // Restons simple : expansion manuelle sauf si besoin. 
-            // Amélioration UX : tout ouvrir par défaut quand on cherche.
             const allFolderIds = new Set<string>();
             const collectFolders = (nodes: FileTreeNode[]) => {
                 nodes.forEach(node => {
@@ -90,6 +98,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
             setExpandedFolders(allFolderIds);
         }
     }, [displayTree, searchTerm]);
+
+    const handleCreateFolderClick = () => {
+        const name = prompt("Nom du nouveau dossier ?");
+        if (name) {
+            const fullPath = selectedFolderId ? `${selectedFolderId}/${name}` : name;
+            onCreateFolder(fullPath);
+        }
+    };
+
+    const handleCreateNoteClick = () => {
+        const name = prompt("Nom de la nouvelle note (.md) ?");
+        if (name) {
+            const fileName = name.endsWith('.md') ? name : `${name}.md`;
+            const fullPath = selectedFolderId ? `${selectedFolderId}/${fileName}` : fileName;
+            onCreateNote(fullPath);
+        }
+    };
+
 
     // Choix de l'icône selon l'extension
     const getResourceIcon = (extension: string) => {
@@ -131,19 +157,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         {node.type === 'folder' ? (
                             <div className="folder-node">
                                 <div
-                                    className="tree-label folder-label"
-                                    onClick={() => toggleFolder(node.id)}
+                                    className={`tree-label folder-label ${selectedFolderId === node.id ? 'active' : ''}`}
+                                    onClick={() => handleFolderClick(node.id)}
                                 >
-                                    {expandedFolders.has(node.id) ? (
-                                        <ChevronDown size={14} className="tree-arrow" />
-                                    ) : (
-                                        <ChevronRight size={14} className="tree-arrow" />
-                                    )}
-                                    {expandedFolders.has(node.id) ? (
-                                        <FolderOpen size={16} className="tree-icon folder-icon" />
-                                    ) : (
-                                        <Folder size={16} className="tree-icon folder-icon" />
-                                    )}
+                                    <span
+                                        className="folder-toggle-click-area"
+                                        onClick={(e) => toggleFolder(node.id, e)}
+                                        style={{ display: 'flex', alignItems: 'center', marginRight: '4px' }}
+                                    >
+                                        {expandedFolders.has(node.id) ? (
+                                            <ChevronDown size={14} className="tree-arrow" />
+                                        ) : (
+                                            <ChevronRight size={14} className="tree-arrow" />
+                                        )}
+                                        {expandedFolders.has(node.id) ? (
+                                            <FolderOpen size={16} className="tree-icon folder-icon" />
+                                        ) : (
+                                            <Folder size={16} className="tree-icon folder-icon" />
+                                        )}
+                                    </span>
                                     <span className="node-name">{node.name}</span>
                                 </div>
 
@@ -182,7 +214,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return (
         <aside className="sidebar">
             <div className="sidebar-header">
-                <div className="sidebar-title">NAVIGATEUR</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <div className="sidebar-title" style={{ marginBottom: 0 }}>NAVIGATEUR</div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button onClick={handleCreateFolderClick} className="icon-btn" title="Nouveau dossier" style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--cockpit-text-muted)',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '4px',
+                            transition: 'background-color 0.2s, color 0.2s',
+                        }}>
+                            <FolderPlus size={16} />
+                        </button>
+                        <button onClick={handleCreateNoteClick} className="icon-btn" title="Nouvelle note" style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--cockpit-text-muted)',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '4px',
+                            transition: 'background-color 0.2s, color 0.2s',
+                        }}>
+                            <FilePlus size={16} />
+                        </button>
+                    </div>
+                </div>
                 <div className="search-box">
                     <Search size={14} className="search-icon" />
                     <input

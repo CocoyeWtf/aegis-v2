@@ -11,7 +11,10 @@ export interface FileTreeNode {
 /**
  * Construit un arbre de fichiers à partir d'une liste plate de Notes et Ressources.
  */
-export function buildFileTree(notes: Note[], resources: Resource[]): FileTreeNode[] {
+/**
+ * Construit un arbre de fichiers à partir d'une liste plate de Notes, Ressources et Dossiers.
+ */
+export function buildFileTree(notes: Note[], resources: Resource[], folders: string[] = []): FileTreeNode[] {
     const root: FileTreeNode[] = [];
     const map: Record<string, FileTreeNode> = {};
 
@@ -39,7 +42,14 @@ export function buildFileTree(notes: Note[], resources: Resource[]): FileTreeNod
         return newNode;
     };
 
-    // Traitement des items (Notes et Ressources mélangées)
+    // 1. Créer d'abord la structure des dossiers explicites
+    folders.forEach(folderPath => {
+        const parts = folderPath.split('/');
+        const parentPath = parts.slice(0, -1).join('/');
+        getOrCreateFolder(folderPath, parentPath);
+    });
+
+    // 2. Traitement des items (Notes et Ressources mélangées)
     const allItems = [
         ...notes.map(n => ({ ...n, itemType: 'note' as const })),
         ...resources.map(r => ({ ...r, itemType: 'resource' as const }))
@@ -60,6 +70,7 @@ export function buildFileTree(notes: Note[], resources: Resource[]): FileTreeNod
         if (dirPath === '') {
             root.push(node);
         } else {
+            // Note: getOrCreateFolder ici gère aussi les dossiers implicites si jamais ils manquent dans 'folders'
             const parent = getOrCreateFolder(dirPath, dirPath.split('/').slice(0, -1).join('/'));
             parent.children?.push(node);
         }
