@@ -1,0 +1,153 @@
+.editor-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--cockpit-bg);
+    overflow: hidden;
+}
+
+.editor-toolbar {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: var(--cockpit-sidebar-bg);
+    border-bottom: 1px solid var(--cockpit-border);
+    gap: 0.5rem;
+}
+
+.toolbar-group {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.toolbar-btn {
+    background: transparent;
+    border: none;
+    color: var(--cockpit-text-muted);
+    padding: 0.25rem;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.toolbar-btn:hover {
+    background: var(--cockpit-hover);
+    color: var(--cockpit-text);
+}
+
+.toolbar-btn.is-active {
+    background: var(--cockpit-active);
+    color: white;
+}
+
+.toolbar-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--cockpit-border);
+    margin: 0 0.5rem;
+}
+
+.toolbar-spacer {
+    flex: 1;
+}
+
+.save-indicator {
+    font-size: 0.75rem;
+    color: var(--cockpit-text-muted);
+}
+
+.editor-content-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.note-title-bar {
+    padding: 0.5rem 2rem;
+    font-size: 0.8rem;
+    color: var(--cockpit-text-muted);
+    border-bottom: 1px dashed var(--cockpit-border);
+    margin-bottom: 1rem;
+    font-family: monospace;
+}
+
+/* TipTap Specifics */
+.tiptap-editor {
+    flex: 1;
+    outline: none;
+    padding: 0 2rem 4rem 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.ProseMirror {
+    outline: none;
+    min-height: 200px;
+    color: var(--cockpit-text);
+    font-size: 0.95rem;
+    line-height: 1.2;
+    /* Ultra-Compact */
+}
+
+.ProseMirror p {
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+.ProseMirror h1 {
+    font-size: 1.75em;
+    font-weight: 700;
+    margin-top: 0.4em;
+    margin-bottom: 0.2em;
+    color: var(--cockpit-active-text);
+}
+
+.ProseMirror h2 {
+    font-size: 1.4em;
+    font-weight: 600;
+    margin-top: 0.4em;
+    margin-bottom: 0.2em;
+    color: var(--cockpit-text);
+}
+
+.ProseMirror h3 {
+    font-size: 1.2em;
+    font-weight: 600;
+    margin-top: 0.4em;
+    margin-bottom: 0.2em;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+    padding-left: 1.5rem;
+    margin-bottom: 0.2rem;
+}
+
+
+/* Removed TaskList styles */
+
+
+.ProseMirror blockquote {
+    border-left: 3px solid var(--cockpit-active);
+    padding-left: 1rem;
+    margin-left: 0;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-style: italic;
+    color: var(--cockpit-text-muted);
+}
+
+.ProseMirror mark {
+    background-color: rgba(255, 235, 59, 0.35);
+    /* More visible yellow */
+    color: inherit;
+    padding: 0 4px;
+    /* Better padding */
+    border-radius: 4px;
+}

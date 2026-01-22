@@ -5,6 +5,7 @@ import { dbService } from './services/DatabaseService';
 import type { Note, Resource } from './types';
 import './App.css';
 import { Sidebar } from './components/Sidebar';
+import { Editor } from './components/Editor';
 
 function App() {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -68,8 +69,6 @@ function App() {
     loadDataFromDB();
   };
 
-
-
   const handleSelectResource = async (resource: Resource) => {
     try {
       const handle = await fileService.getFileHandle(resource.relative_path);
@@ -101,8 +100,6 @@ function App() {
       const defaultContent = `# ${path.split('/').pop()?.replace('.md', '')}\n\n`;
       await fileService.createFile(path, defaultContent);
       await runSync();
-
-      // Tenter de sélectionner la nouvelle note (nécessiterait une meilleure gestion d'état async, mais simple refresh ici)
     } catch (error) {
       console.error("Erreur création note:", error);
       alert("Erreur lors de la création de la note.");
@@ -112,17 +109,11 @@ function App() {
   const handleRename = async (oldPath: string, newName: string) => {
     try {
       setStatus(`Renommage de ${oldPath}...`);
-      // Calculer le nouveau path complet
       const parts = oldPath.split('/');
       parts.pop();
       const newPath = [...parts, newName].join('/');
 
       await fileService.renameEntry(oldPath, newPath);
-
-      // Mise à jour de la DB: 
-      // Idéalement on devrait faire ça dans SyncService ou DatabaseService, 
-      // mais ici on va just runSync() qui va tout réindexer proprement (brutal mais sûr pour éviter les incohérences)
-      // Pour les très gros dossiers, c'est lent, mais sûr.
       await runSync();
       setStatus("Renommage terminé.");
     } catch (error) {
@@ -136,11 +127,9 @@ function App() {
     try {
       setStatus(`Suppression de ${path}...`);
       await fileService.deleteEntry(path);
-      // DB Update via Sync
       await runSync();
       setStatus("Suppression terminée.");
 
-      // Si on supprime la note active, on la désélectionne
       if (activeNote?.relative_path === path) {
         setActiveNote(null);
       }
@@ -148,6 +137,31 @@ function App() {
       console.error("Erreur suppression:", error);
       setStatus("Erreur suppression.");
       alert("Erreur lors de la suppression.");
+    }
+  };
+
+  const handleSaveNote = async (note: Note, newContent: string) => {
+    try {
+      // Update File
+      await fileService.createFile(note.relative_path, newContent);
+
+      // Update Local State & DB
+      const updatedNote: Note = {
+        ...note,
+        content: newContent,
+        last_modified: Date.now()
+      };
+
+      await dbService.putNote(updatedNote);
+
+      setNotes(prev => prev.map(n => n.relative_path === note.relative_path ? updatedNote : n));
+
+      if (activeNote?.relative_path === note.relative_path) {
+        setActiveNote(updatedNote);
+      }
+    } catch (error) {
+      console.error("Erreur sauvegarde note:", error);
+      setStatus("Erreur sauvegarde.");
     }
   };
 
@@ -182,26 +196,9 @@ function App() {
           </div>
         </header>
 
-        <div className="content-area" style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
+        <div className="content-area" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           {activeNote ? (
-            <div className="note-viewer" style={{ maxWidth: '800px', margin: '0 auto' }}>
-              <h2 style={{ marginTop: 0, color: 'var(--cockpit-active-text)' }}>{activeNote.title || activeNote.relative_path}</h2>
-              <div style={{ color: 'var(--cockpit-text-muted)', fontSize: '0.8rem', marginBottom: '1rem', fontFamily: 'monospace' }}>
-                {activeNote.relative_path}
-              </div>
-              <pre style={{
-                whiteSpace: 'pre-wrap',
-                fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                background: 'var(--cockpit-sidebar-bg)',
-                color: 'var(--cockpit-text)',
-                padding: '1.5rem',
-                borderRadius: '8px',
-                border: '1px solid var(--cockpit-border)',
-                lineHeight: 1.6
-              }}>
-                {activeNote.content}
-              </pre>
-            </div>
+            <Editor note={activeNote} onSave={handleSaveNote} />
           ) : (
             <div className="empty-state" style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
               <div style={{ fontSize: '4rem', color: 'var(--cockpit-border)', marginBottom: '1rem' }}>⬡</div>
