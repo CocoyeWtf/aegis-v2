@@ -25,6 +25,28 @@ export class FileService {
         this.directoryHandle = handle;
     }
 
+    // Récupère le handle d'un fichier spécifique
+    async getFileHandle(relativePath: string): Promise<FileSystemFileHandle | null> {
+        if (!this.directoryHandle) return null;
+
+        try {
+            const parts = relativePath.split('/');
+            const fileName = parts.pop()!;
+            let currentDir = this.directoryHandle;
+
+            // Naviguer dans les dossiers
+            for (const part of parts) {
+                currentDir = await currentDir.getDirectoryHandle(part);
+            }
+
+            // Récupérer le fichier
+            return await currentDir.getFileHandle(fileName);
+        } catch (error) {
+            console.error(`Impossible de récupérer le handle pour ${relativePath}`, error);
+            return null;
+        }
+    }
+
     // Récupère récursivement TOUS les fichiers
     async getAllFiles(
         dirHandle: FileSystemDirectoryHandle = this.directoryHandle!,

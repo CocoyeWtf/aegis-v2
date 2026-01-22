@@ -6,7 +6,12 @@ import {
     File,
     Search,
     ChevronRight,
-    ChevronDown
+    ChevronDown,
+    Map,
+    Table,
+    FileImage,
+    FileCode,
+    FileJson,
 } from 'lucide-react';
 import type { Note, Resource } from '../types';
 import { buildFileTree, type FileTreeNode } from '../utils/fileTreeUtils';
@@ -86,6 +91,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }
     }, [displayTree, searchTerm]);
 
+    // Choix de l'icône selon l'extension
+    const getResourceIcon = (extension: string) => {
+        switch (extension.toLowerCase()) {
+            case 'xls':
+            case 'xlsx':
+            case 'csv':
+                return <Table size={15} className="tree-icon icon-xls" />;
+            case 'jpg':
+            case 'jpeg':
+            case 'png':
+            case 'gif':
+            case 'webp':
+            case 'svg':
+                return <FileImage size={15} className="tree-icon icon-img" />;
+            case 'json':
+                return <FileJson size={15} className="tree-icon icon-code" />;
+            case 'js':
+            case 'ts':
+            case 'tsx':
+            case 'jsx':
+            case 'html':
+            case 'css':
+                return <FileCode size={15} className="tree-icon icon-code" />;
+            case 'pdf':
+                return <FileText size={15} className="tree-icon icon-pdf" />;
+            case 'map':
+                return <Map size={15} className="tree-icon icon-map" />;
+            default:
+                return <File size={15} className="tree-icon icon-default" />;
+        }
+    };
 
     const renderTree = (nodes: FileTreeNode[]) => {
         return (
@@ -127,12 +163,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             >
                                 <span className="tree-indent" />
                                 {/* Indentation visuelle simple si pas dans un folder enfant du DOM 
-                    mais ici on est récursif, donc le padding-left du parent suffit */}
+                    but here we are recursive, so the parent's padding-left is enough */}
 
                                 {node.type === 'note' ? (
                                     <FileText size={15} className="tree-icon note-icon" />
                                 ) : (
-                                    <File size={15} className="tree-icon resource-icon" />
+                                    getResourceIcon((node.data as Resource).extension)
                                 )}
                                 <span className="node-name">{node.name}</span>
                             </div>
@@ -146,8 +182,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return (
         <aside className="sidebar">
             <div className="sidebar-header">
+                <div className="sidebar-title">NAVIGATEUR</div>
                 <div className="search-box">
-                    <Search size={16} className="search-icon" />
+                    <Search size={14} className="search-icon" />
                     <input
                         type="text"
                         placeholder="Rechercher..."

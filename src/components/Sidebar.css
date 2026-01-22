@@ -1,42 +1,71 @@
+:root {
+    --cockpit-bg: #0f172a;
+    --cockpit-sidebar-bg: #1e293b;
+    --cockpit-border: #334155;
+    --cockpit-text: #cbd5e1;
+    --cockpit-text-muted: #94a3b8;
+    --cockpit-hover: #334155;
+    --cockpit-active: #2563eb;
+    --cockpit-active-text: #ffffff;
+}
+
 .sidebar {
-    width: 250px;
-    background-color: #f1f5f9;
-    border-right: 1px solid #e2e8f0;
+    width: 280px;
+    background-color: var(--cockpit-sidebar-bg);
+    border-right: 1px solid var(--cockpit-border);
     display: flex;
     flex-direction: column;
     height: 100vh;
     flex-shrink: 0;
+    color: var(--cockpit-text);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
 }
 
 .sidebar-header {
     padding: 1rem;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--cockpit-border);
+}
+
+.sidebar-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--cockpit-text-muted);
+    letter-spacing: 0.1em;
+    margin-bottom: 0.75rem;
+    padding-left: 0.25rem;
 }
 
 .search-box {
     display: flex;
     align-items: center;
-    background: white;
-    padding: 0.5rem;
-    border-radius: 6px;
-    border: 1px solid #cbd5e1;
+    background: #0f172a;
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    border: 1px solid var(--cockpit-border);
+    transition: border-color 0.2s;
 }
 
 .search-box:focus-within {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    border-color: var(--cockpit-active);
 }
 
 .search-icon {
-    color: #94a3b8;
+    color: var(--cockpit-text-muted);
     margin-right: 0.5rem;
 }
 
 .search-box input {
     border: none;
+    background: transparent;
     outline: none;
     width: 100%;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    color: var(--cockpit-text);
+}
+
+.search-box input::placeholder {
+    color: #475569;
 }
 
 .sidebar-content {
@@ -45,72 +74,113 @@
     padding: 0.5rem 0;
 }
 
+/* Scrollbar styling for Webkit */
+.sidebar-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+    background-color: var(--cockpit-border);
+    border-radius: 4px;
+}
+
 .file-tree {
     list-style: none;
     padding: 0;
     margin: 0;
 }
 
-.tree-item {
-    /* Pas de style particulier pour le li */
-}
-
 .tree-label {
     display: flex;
     align-items: center;
-    padding: 0.25rem 0.5rem;
+    padding: 0.35rem 0.75rem;
     cursor: pointer;
-    color: #334155;
-    font-size: 0.9rem;
+    color: var(--cockpit-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     user-select: none;
+    transition: background-color 0.1s;
 }
 
 .tree-label:hover {
-    background-color: #e2e8f0;
+    background-color: var(--cockpit-hover);
+    color: #fff;
 }
 
 .tree-label.active {
-    background-color: #dbeafe;
-    color: #2563eb;
-    font-weight: 500;
+    background-color: var(--cockpit-active);
+    color: var(--cockpit-active-text);
 }
 
 .folder-children {
-    padding-left: 0.75rem;
-    /* Indentation récursive */
-    border-left: 1px solid #e2e8f0;
-    margin-left: 0.8rem;
+    padding-left: 0;
+    /* Align perfectly with indented children logic if manually handled, or keep indent */
+    /* Using border for hierarchy guide */
+    border-left: 1px solid var(--cockpit-border);
+    margin-left: 1.1rem;
+    /* Adjust based on icon width */
 }
 
 .folder-label {
-    font-weight: 500;
-    color: #475569;
+    font-weight: 600;
+    color: var(--cockpit-text);
 }
 
 .tree-icon {
     margin-right: 0.5rem;
     flex-shrink: 0;
+    opacity: 0.8;
 }
 
 .tree-arrow {
     margin-right: 0.25rem;
-    color: #94a3b8;
+    color: var(--cockpit-text-muted);
     flex-shrink: 0;
+    transition: transform 0.2s;
 }
 
 .folder-icon {
-    color: #64748b;
+    color: #faa916;
 }
 
+/* Goldish folder */
 .note-icon {
-    color: #3b82f6;
+    color: #38bdf8;
 }
 
-.resource-icon {
-    color: #f59e0b;
+/* Sky blue */
+.icon-xls {
+    color: #22c55e;
+}
+
+/* Green */
+.icon-pdf {
+    color: #f43f5e;
+}
+
+/* Red */
+.icon-img {
+    color: #d946ef;
+}
+
+/* Fuchsia */
+.icon-code {
+    color: #eab308;
+}
+
+/* Yellow */
+.icon-map {
+    color: #a855f7;
+}
+
+/* Purple */
+.icon-default {
+    color: #94a3b8;
 }
 
 .node-name {
@@ -121,6 +191,7 @@
 .empty-search {
     padding: 1rem;
     text-align: center;
-    color: #94a3b8;
-    font-size: 0.9rem;
+    color: var(--cockpit-text-muted);
+    font-size: 0.85rem;
+    font-style: italic;
 }
